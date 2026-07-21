@@ -24,6 +24,9 @@ jobs:
       - name: Build the Mac app (.dmg)
         run: npm run dist -- --publish=never
 
+      - name: Clear quarantine attributes
+        run: xattr -cr dist/*.dmg || true
+
       - name: Upload the built app as a downloadable artifact
         uses: actions/upload-artifact@v4
         with:
