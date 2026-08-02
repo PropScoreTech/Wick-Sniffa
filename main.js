@@ -115,14 +115,11 @@ function createWindow() {
     },
   });
 
-  // 'screen-saver' level keeps it floating above most other app windows,
-  // including many fullscreen charting apps.
   win.setAlwaysOnTop(true, 'screen-saver');
   win.loadFile('index.html').catch((e) => logError('Failed to load index.html', e));
 
   win.webContents.on('render-process-gone', (event, details) => {
     logError('Renderer process gone', details.reason);
-    // Try to recover instead of leaving a dead/blank window on screen
     if (!win.isDestroyed()) win.close();
     setTimeout(() => {
       try {
@@ -137,7 +134,6 @@ function createWindow() {
     logError('Window became unresponsive', 'no error object');
   });
 
-  // Remember window position between sessions
   let moveTimeout;
   win.on('move', () => {
     clearTimeout(moveTimeout);
@@ -171,17 +167,12 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
 
-// Catch anything that would otherwise crash the whole app silently, and
-// write it to the error log instead so it can actually be diagnosed.
 process.on('uncaughtException', (err) => {
   logError('Uncaught exception in main process', err);
 });
 process.on('unhandledRejection', (reason) => {
   logError('Unhandled promise rejection in main process', reason);
 });
-
-// --- IPC handlers used by the renderer (index.html via preload.js) ---
-// Each is wrapped so a failure in one handler can't take down the app.
 
 function safeHandle(channel, fn) {
   ipcMain.handle(channel, async (event, ...args) => {
