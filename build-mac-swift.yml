@@ -1,0 +1,77 @@
+name: Build Mac App (Swift)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'swift-app/**'
+      - '.github/workflows/build-mac-swift.yml'
+
+jobs:
+  build-mac-swift:
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Build the executable (universal: Apple Silicon + Intel)
+        working-directory: swift-app
+        run: swift build -c release --arch arm64 --arch x86_64
+
+      - name: Assemble the .app bundle
+        working-directory: swift-app
+        run: |
+          APP_NAME="Sir Darb's Sniff Counter"
+          BUNDLE="dist/${APP_NAME}.app"
+          mkdir -p "$BUNDLE/Contents/MacOS"
+          mkdir -p "$BUNDLE/Contents/Resources"
+          cp .build/apple/Products/Release/SirDarbsSniffCounter "$BUNDLE/Contents/MacOS/SirDarbsSniffCounter"
+          chmod +x "$BUNDLE/Contents/MacOS/SirDarbsSniffCounter"
+
+          cat > "$BUNDLE/Contents/Info.plist" << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>SirDarbsSniffCounter</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.sirdarb.sniffcounter</string>
+              <key>CFBundleName</key>
+              <string>Sir Darb's Sniff Counter</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>CFBundleShortVersionString</key>
+              <string>1.0.0</string>
+              <key>CFBundleVersion</key>
+              <string>1</string>
+              <key>LSUIElement</key>
+              <true/>
+              <key>NSHighResolutionCapable</key>
+              <true/>
+              <key>LSMinimumSystemVersion</key>
+              <string>11.0</string>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Ad-hoc code sign (no paid certificate needed)
+        working-directory: swift-app
+        run: |
+          codesign --force --deep -s - "dist/Sir Darb's Sniff Counter.app"
+
+      - name: Package as .dmg
+        working-directory: swift-app
+        run: |
+          hdiutil create -volname "Sir Darb's Sniff Counter" \
+            -srcfolder "dist/Sir Darb's Sniff Counter.app" \
+            -ov -format UDZO \
+            "dist/Sir Darb's Sniff Counter.dmg"
+
+      - name: Upload the built app as a downloadable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sir-darbs-sniff-counter-mac-swift
+          path: swift-app/dist/*.dmg
